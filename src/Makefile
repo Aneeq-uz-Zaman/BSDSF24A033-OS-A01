@@ -1,4 +1,4 @@
-.PHONY: all clean
+.PHONY: all clean install uninstall
 
 all: ../bin/client_static ../bin/client_dynamic
 
@@ -32,3 +32,26 @@ all: ../bin/client_static ../bin/client_dynamic
 
 clean:
 	rm -f ../obj/*.o ../lib/libmyutils.a ../lib/libmyutils.so ../bin/client_static ../bin/client_dynamic
+
+install: all
+	install -d /usr/local/bin
+	install -m 755 ../bin/client_static /usr/local/bin/client
+	install -d /usr/local/share/man/man1
+	install -d /usr/local/share/man/man3
+	install -m 644 ../man/man1/client.1 /usr/local/share/man/man1/
+	install -m 644 ../man/man3/mystrlen.3 /usr/local/share/man/man3/
+	install -m 644 ../man/man3/mystrcpy.3 /usr/local/share/man/man3/
+	install -m 644 ../man/man3/mystrncpy.3 /usr/local/share/man/man3/
+	install -m 644 ../man/man3/mystrcat.3 /usr/local/share/man/man3/
+	install -m 644 ../man/man3/wordCount.3 /usr/local/share/man/man3/
+	install -m 644 ../man/man3/mygrep.3 /usr/local/share/man/man3/
+
+uninstall:
+	rm -f /usr/local/bin/client
+	rm -f /usr/local/share/man/man1/client.1
+	rm -f /usr/local/share/man/man3/mystrlen.3
+	rm -f /usr/local/share/man/man3/mystrcpy.3
+	rm -f /usr/local/share/man/man3/mystrncpy.3
+	rm -f /usr/local/share/man/man3/mystrcat.3
+	rm -f /usr/local/share/man/man3/wordCount.3
+	rm -f /usr/local/share/man/man3/mygrep.3

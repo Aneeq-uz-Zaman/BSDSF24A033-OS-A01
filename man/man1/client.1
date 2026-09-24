@@ -1,0 +1,28 @@
+.TH CLIENT 1 "2026-09-25" "libmyutils 1.0" "libmyutils Manual"
+.SH NAME
+client \- driver program exercising the libmyutils string and file functions
+.SH SYNOPSIS
+.B client
+.SH DESCRIPTION
+.B client
+is the test driver program for
+.BR libmyutils .
+It calls each of the string functions
+.RB ( mystrlen ", " mystrcpy ", " mystrncpy ", " mystrcat )
+and each of the file functions
+.RB ( wordCount ", " mygrep )
+with sample input, printing the result of each call to standard
+output. It creates a temporary file to demonstrate the file
+functions and removes it before exiting.
+.SH EXIT STATUS
+Returns 0 on success, or 1 if the temporary test file could not be
+created or opened.
+.SH SEE ALSO
+.BR mystrlen (3),
+.BR mystrcpy (3),
+.BR mystrncpy (3),
+.BR mystrcat (3),
+.BR wordCount (3),
+.BR mygrep (3)
+.SH AUTHOR
+Muhammad Aneeq-uz-Zaman <124713238+Aneeq-uz-Zaman@users.noreply.github.com>

@@ -1,0 +1,26 @@
+.TH MYSTRCPY 3 "2026-09-25" "libmyutils 1.0" "libmyutils Manual"
+.SH NAME
+mystrcpy \- copy a string
+.SH SYNOPSIS
+\fB#include "mystrfunctions.h"\fP
+.sp
+.BI "int mystrcpy(char *" dest ", const char *" src );
+.SH DESCRIPTION
+The
+.BR mystrcpy ()
+function copies the string pointed to by
+.I src
+(including the terminating null byte) into the buffer pointed to by
+.IR dest .
+The caller is responsible for ensuring
+.I dest
+is large enough to hold the result.
+.SH RETURN VALUE
+Returns the number of characters copied (not counting the null byte).
+Returns \-1 if
+.I dest
+or
+.I src
+is NULL.
+.SH AUTHOR
+Muhammad Aneeq-uz-Zaman <124713238+Aneeq-uz-Zaman@users.noreply.github.com>

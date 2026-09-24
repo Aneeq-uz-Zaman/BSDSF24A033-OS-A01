@@ -114,10 +114,25 @@ This shows that unlike static linking (where everything needed is already inside
 
 ## Part 5: Man Pages & Installation
 
-_(No report questions specified for this part in the assignment; notes on the install process can go here.)_
+_(No report questions specified for this part in the assignment; notes on the install process below.)_
+
+Man pages were written in `man/man3/` for each library function (`mystrlen`, `mystrcpy`, `mystrncpy`, `mystrcat`, `wordCount`, `mygrep`) and in `man/man1/client.1` for the driver program itself, each with `.TH`, `.SH NAME`, `.SH SYNOPSIS`, `.SH DESCRIPTION`, and `.SH AUTHOR` sections. They were previewed locally with `man -l man/man3/mystrlen.3` before installing.
+
+The `install` target (added to both the root `Makefile` and `src/Makefile`) copies `bin/client_static` to `/usr/local/bin/client` and all man pages to `/usr/local/share/man/man{1,3}`. `client_static` was installed rather than `client_dynamic`, since a statically-linked binary is self-contained — installing the dynamic version system-wide would additionally require installing `libmyutils.so` to a system library directory and running `ldconfig`, which the assignment doesn't ask for. After `sudo make install`, `client` runs from any directory and `man client` / `man mystrlen` work without extra configuration, since `/usr/local/bin` and `/usr/local/share/man` are already on the default `PATH`/`MANPATH`.
 
 ---
 
 ## Part 6: Final Notes
 
-_TODO — summary once all branches are merged and pushed._
+All feature branches were completed, tagged, and merged into `main` in sequence:
+
+| Branch | Tag | Release |
+|---|---|---|
+| `multifile-build` | `v0.1.1-multifile` | Version 0.1.0: Multi-file Build |
+| `static-build` | `v0.2.1-static` | Version 0.2.1: Static Library Build |
+| `dynamic-build` | `v0.3.1-dynamic` | Version 0.3.1: Dynamic Library Build |
+| `man-pages` | `v0.4.1-final` | Version 0.4.1: Final Build |
+
+Each branch was merged into `main` before starting the next feature (per the assignment's stated sequencing), and all branches remain pushed to the remote alongside `main` for the complete development history.
+
+Building this project end to end — direct multi-file compilation, then a static library, then a dynamic library, then packaging with man pages and an install target — made the tradeoffs between the approaches concrete rather than theoretical: the same six functions moved from being copied directly into one executable, to being archived and still copied in at static-link time, to finally being loaded from a separate `.so` file at runtime and resolved by the dynamic loader via `LD_LIBRARY_PATH`. Inspecting the results at each stage with `nm`, `readelf`, `ldd`, and `ls -lh` turned "static vs. dynamic linking" from a textbook distinction into something directly observable in the built artifacts.

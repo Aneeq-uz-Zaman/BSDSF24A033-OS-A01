@@ -10,24 +10,24 @@
 
 ### Q1. Explain the linking rule `$(TARGET): $(OBJECTS)`. How does it differ from a rule that links against a library?
 
-This rule tells `make` that the final executable (`$(TARGET)`) depends on every object file listed in `$(OBJECTS)`. If any of those `.o` files is newer than the executable (or the executable doesn't exist yet), `make` runs the recipe, which calls the compiler as a linker on the full list: `gcc main.o mystrfunctions.o myfilefunctions.o -o client`. In our own Makefile (no macros used) the same rule is written out literally as `../bin/client: ../obj/main.o ../obj/mystrfunctions.o ../obj/myfilefunctions.o`.
+This rule tells `make`: "to build the final program, you need these object files first." If any object file is newer than the program, `make` rebuilds it by running the compiler like this: `gcc main.o mystrfunctions.o myfilefunctions.o -o client`. In our own Makefile, this same rule looks like `../bin/client: ../obj/main.o ../obj/mystrfunctions.o ../obj/myfilefunctions.o`.
 
-This is **direct linking**: the linker pulls the actual machine code out of every listed object file and merges it into one self-contained executable. Every function's code physically lives inside the final binary.
+This is called **direct linking** — the linker takes the real code out of every object file and copies it straight into the final program.
 
-Linking against a library works differently. Instead of listing every object file the program needs, the rule references a pre-built library and uses the `-L` (library search path) and `-l` (library name) flags, e.g. `gcc main.o -L../lib -lmyutils -o client`. The build no longer needs to know which individual `.o` files make up `libmyutils` — that detail is hidden inside the library file. This decouples the application from the library's internals: the library can be rebuilt independently, and several different programs can link against the same compiled library without ever recompiling its source.
+Linking against a library works differently. Instead of listing every object file, we just tell the linker where to look and what to use: `gcc main.o -L../lib -lmyutils -o client`. Here `-L` says "look in this folder" and `-l` says "use the library with this name." The program no longer needs to know exactly which `.o` files make up the library — it's hidden inside the library file. This makes it easy to update the library later, or reuse it in other programs, without recompiling everything.
 
 ### Q2. What is a git tag and why is it useful? What is the difference between a lightweight and an annotated tag?
 
-A git tag is a fixed, named pointer to one specific commit. Unlike a branch, a tag never moves as new commits are added — it permanently marks "this exact commit is version X," which makes it easy to check out, compare against, or build a release from that exact point in history later.
+A git tag is just a name we give to one specific commit, so we can find it again easily later — like a bookmark. Unlike a branch, a tag never moves. Once we tag a commit `v0.1.1-multifile`, that name always points to that exact commit, even after we keep making new commits elsewhere.
 
-- **Lightweight tag** (`git tag v0.1.1-multifile`) is just a name pointing straight at a commit hash — no extra data, similar to a branch reference that can't move.
-- **Annotated tag** (`git tag -a v0.1.1-multifile -m "message"`) is a full object stored in git's database: it records the tagger's name, email, date, and a message, and can be GPG-signed. GitHub Releases are built on top of annotated tags, which is why the assignment specifically asks for one.
+- **Lightweight tag** — just a name pointing to a commit. Nothing else attached.
+- **Annotated tag** — also stores who made it, when, and a message, almost like its own tiny commit. GitHub Releases are built on top of annotated tags, which is why the assignment asks for one.
 
 ### Q3. What is the purpose of creating a "Release" on GitHub? What is the significance of attaching binaries to it?
 
-A GitHub Release packages a tagged commit into something end users can actually consume: a title, a description/changelog, and (optionally) downloadable files, all shown on a dedicated page. It turns a point in the commit history into a distributable version of the software.
+A GitHub Release takes one tag and turns it into something people can actually use — a title, a description, and (if we want) files attached, like our compiled program. It turns "a point in the code's history" into "a version someone can download."
 
-Attaching a compiled binary (like `bin/client`) matters because it lets someone download and run the program immediately — without cloning the repository, installing a compiler, or running `make` themselves. GitHub already auto-generates a source-code zip/tarball for every tag, but that's just the source; producing and attaching the actual compiled artifact is the maintainer's job, and it's what separates "here's the code as of this tag" from "here's the program you can run right now."
+Attaching the compiled program (`bin/client`) matters because now anyone can download and run it directly, without installing a compiler or typing any build commands. GitHub already gives people the source code automatically for every tag, but the actual ready-to-run program is something we have to build and upload ourselves.
 
 ---
 
@@ -35,34 +35,34 @@ Attaching a compiled binary (like `bin/client`) matters because it lets someone 
 
 ### Q1. Compare the Makefile from Part 2 and Part 3. What are the key differences in the variables and rules that enable the creation of a static library?
 
-In Part 2, the final target linked directly from all three object files:
+In Part 2, the final program was built directly from all three object files:
 ```
 ../bin/client: ../obj/main.o ../obj/mystrfunctions.o ../obj/myfilefunctions.o
 	gcc ../obj/main.o ../obj/mystrfunctions.o ../obj/myfilefunctions.o -o ../bin/client
 ```
 
-In Part 3, an extra rule sits in between: instead of `mystrfunctions.o` and `myfilefunctions.o` going straight into the final link, they first get archived into `lib/libmyutils.a`:
+In Part 3, there's one extra step. Instead of putting `mystrfunctions.o` and `myfilefunctions.o` straight into the final program, we first pack them into one library file, `lib/libmyutils.a`:
 ```
 ../lib/libmyutils.a: ../obj/mystrfunctions.o ../obj/myfilefunctions.o
 	ar rc ../lib/libmyutils.a ../obj/mystrfunctions.o ../obj/myfilefunctions.o
 	ranlib ../lib/libmyutils.a
 ```
-and the final executable (`client_static`) now depends on `main.o` plus the library archive, linking against it with `-L`/`-l` instead of listing raw object files:
+Then the final program (`client_static`) only needs `main.o` plus that library file:
 ```
 ../bin/client_static: ../obj/main.o ../lib/libmyutils.a
 	gcc ../obj/main.o -L../lib -lmyutils -o ../bin/client_static
 ```
-So the key differences: (1) a new intermediate target that builds `libmyutils.a` using `ar`/`ranlib`, and (2) the final link rule's recipe switches from listing every object file individually to `-L../lib -lmyutils`, which tells the linker "search `lib/` for a library named `myutils` and pull in whatever symbols are actually needed from it."
+So the two key differences are: (1) there's a new step that builds `libmyutils.a` using `ar` and `ranlib`, and (2) instead of listing every object file by name in the final link, we just say `-L../lib -lmyutils`, which means "look in the `lib` folder for a library called `myutils`."
 
 ### Q2. What is the purpose of the `ar` command? Why is `ranlib` often used immediately after it?
 
-`ar` (archiver) bundles multiple object files into a single archive file (`.a`) without compressing them — a static library is really just a collection of `.o` files glued together with an index. Running `ar -t lib/libmyutils.a` confirms both object files landed inside it:
+`ar` (short for "archiver") takes several object files and packs them into one file called a static library (`.a`). It doesn't compress anything — it just bundles the files together. Running `ar -t lib/libmyutils.a` proves both files really are inside:
 ```
 mystrfunctions.o
 myfilefunctions.o
 ```
 
-`ranlib` builds a symbol index inside that archive — a lookup table mapping each function name (e.g. `mystrlen`) to the specific `.o` member that defines it. Without this index, the linker would have to scan every object file in the archive one by one to find a symbol; with it, the linker can jump straight to the right member. Some versions of `ar` (the `s` flag, i.e. `ar rcs`) build this index automatically, but running `ranlib` explicitly makes the two separate responsibilities — archiving vs. indexing — visible.
+`ranlib` adds a small index inside that library file — basically a table saying "the function `mystrlen` is inside this particular object file." Without this index, the linker would have to open and search every object file one by one to find a function. With the index, it can jump straight to the right one. (Some versions of `ar` can build this index automatically using the `s` flag, but we ran `ranlib` as its own separate step so it's easier to see what it actually does.)
 
 ### Q3. When you run `nm` on `client_static`, are the symbols for functions like `mystrlen` present? What does this tell you about static linking?
 
@@ -70,9 +70,9 @@ Yes. Running `nm bin/client_static | grep mystrlen` shows:
 ```
 00000000000016d4 T mystrlen
 ```
-The `T` means the symbol is defined in the executable's own text (code) section — the actual machine code for `mystrlen` has been copied straight into `client_static`. The same is true for every other library function (`mystrcpy`, `mystrncpy`, `mystrcat`, `wordCount`, `mygrep` all show up with `nm bin/client_static`).
+The `T` means this function's real code is sitting inside the program itself. The same is true for every other function too (`mystrcpy`, `mystrncpy`, `mystrcat`, `wordCount`, `mygrep`).
 
-This confirms how static linking works: at link time, the linker pulls whichever object files (from `libmyutils.a`) actually define the symbols the program uses, and physically copies their code into the final binary. The resulting executable is self-contained — it doesn't need `libmyutils.a` to exist anymore at runtime, since the library's code no longer lives in a separate file, it lives inside `client_static` itself.
+This shows exactly how static linking works: when the program is built, the linker copies the real code from the library straight into the final program. That's why `client_static` doesn't need `libmyutils.a` to exist anymore once it's built — everything it needs is already baked in.
 
 ---
 
@@ -80,35 +80,35 @@ This confirms how static linking works: at link time, the linker pulls whichever
 
 ### Q1. What is Position-Independent Code (`-fPIC`) and why is it required for shared libraries?
 
-Position-Independent Code is machine code that works correctly no matter what memory address it gets loaded at, because it never hardcodes absolute addresses — it accesses data and functions using relative offsets instead. This is compiled with `gcc -fPIC -c mystrfunctions.c -o ../obj/mystrfunctions_pic.o` (a separate object file from the one used in the static build).
+Position-Independent Code (PIC) is code that works correctly no matter where in memory it ends up, because it doesn't hardcode any fixed memory addresses. We compile it with `gcc -fPIC -c mystrfunctions.c -o ../obj/mystrfunctions_pic.o` — a separate object file from the one used for the static build.
 
-It's required for shared libraries because a `.so` is loaded once into memory and then shared by every process that uses it — but each process can end up mapping that library at a different address in its own address space. A statically-linked program doesn't have this problem because its code is baked into one fixed executable at link time, but a shared library has to work identically regardless of where the loader happens to place it. Without `-fPIC`, the library's code would assume a fixed address and break for any process that loads it somewhere else.
+Shared libraries need this because the same `.so` file can be loaded by many different programs at the same time, and each one might load it at a different spot in memory. A normal (static) program doesn't have this problem, since it's the only thing using its own code. But a shared library has to work correctly no matter where it lands — and that's only possible if the code never depends on a fixed address.
 
 ### Q2. Explain the difference in file size between the static and dynamic clients. Why does this difference exist?
 
 ```
-16840 bin/client_static
-16456 bin/client_dynamic
+16840 bytes  bin/client_static
+16456 bytes  bin/client_dynamic
 ```
-`client_dynamic` is smaller than `client_static` by 384 bytes. The reason: `client_static` has the actual machine code for `mystrlen`, `mystrcpy`, `wordCount`, `mygrep`, etc. copied directly into it (confirmed with `nm` in Part 3), while `client_dynamic` only stores a reference saying "look up these symbols in `libmyutils.so` at runtime" — the real code stays in the separate `.so` file (16104 bytes) and isn't duplicated into the executable.
+`client_dynamic` is 384 bytes smaller. The reason: `client_static` has the real code for every function copied inside it. `client_dynamic` just keeps a small note saying "look up this function in `libmyutils.so` when you run me" — the real code stays in that separate file (16104 bytes) instead of being duplicated into the program.
 
-The absolute difference here is small only because `libmyutils` itself is a tiny library with a handful of short functions — most of both executables' size is fixed overhead (ELF headers, C runtime startup code, symbol tables) that exists either way. With a larger, more realistic library, the same effect would produce a much bigger gap, since every additional function would add its full size to a static executable but add nothing to a dynamic one.
+The difference looks small here only because our library is tiny, with just a few short functions. Most of the size in both programs actually comes from fixed overhead (program headers, startup code) that exists either way. If the library had many more functions, the static version would keep growing while the dynamic one would barely change.
 
 ### Q3. What is `LD_LIBRARY_PATH`? Why was it necessary, and what does this tell you about the responsibilities of the dynamic loader?
 
-`LD_LIBRARY_PATH` is an environment variable that tells the dynamic loader (`ld.so`) extra directories to search when a program needs to load a shared library at startup. Running `./bin/client_dynamic` without it fails immediately:
+`LD_LIBRARY_PATH` is an environment variable that tells the program's loader extra places to look for shared library files when it starts up. Without it, running `./bin/client_dynamic` fails right away:
 ```
 ./bin/client_dynamic: error while loading shared libraries: libmyutils.so: cannot open shared object file: No such file or directory
 ```
-This happens because `libmyutils.so` isn't installed anywhere the loader checks by default (like `/usr/lib`) — it only exists in this project's own `lib/` folder, which isn't on the loader's standard search path. Setting it fixes that:
+That's because `libmyutils.so` only exists in our own project's `lib/` folder, which the loader doesn't check by default. Setting the variable fixes it:
 ```bash
 export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
 ```
-After that, `./bin/client_dynamic` runs correctly, and `ldd bin/client_dynamic` confirms exactly where it resolved the library from:
+After that, the program runs fine, and `ldd bin/client_dynamic` shows exactly where it found the library:
 ```
 libmyutils.so => /home/aneeq/OS/BSDSF24A033-OS-A01/lib/libmyutils.so
 ```
-This shows that unlike static linking (where everything needed is already inside the executable), dynamic linking defers finding and loading library code until the program actually starts running. The dynamic loader is responsible for locating every shared library a program depends on at launch time, and if it can't find one, the program can't even start — the dependency is resolved at runtime, not at compile/link time.
+This shows a key difference from static linking: a dynamically-linked program doesn't actually carry the library's code inside it — it only finds and loads the library the moment it starts running. If the loader can't find it at that moment, the program can't even start. Static linking doesn't have this problem, because everything it needs is already built in.
 
 ---
 
@@ -116,15 +116,15 @@ This shows that unlike static linking (where everything needed is already inside
 
 _(No report questions specified for this part in the assignment; notes on the install process below.)_
 
-Man pages were written in `man/man3/` for each library function (`mystrlen`, `mystrcpy`, `mystrncpy`, `mystrcat`, `wordCount`, `mygrep`) and in `man/man1/client.1` for the driver program itself, each with `.TH`, `.SH NAME`, `.SH SYNOPSIS`, `.SH DESCRIPTION`, and `.SH AUTHOR` sections. They were previewed locally with `man -l man/man3/mystrlen.3` before installing.
+Man pages were written in `man/man3/` for each library function (`mystrlen`, `mystrcpy`, `mystrncpy`, `mystrcat`, `wordCount`, `mygrep`), and in `man/man1/client.1` for the driver program itself. Each page has a `.TH` (title), `.SH NAME`, `.SH SYNOPSIS`, `.SH DESCRIPTION`, and `.SH AUTHOR` section. They were checked locally first with `man -l man/man3/mystrlen.3`, before installing them anywhere.
 
-The `install` target (added to both the root `Makefile` and `src/Makefile`) copies `bin/client_static` to `/usr/local/bin/client` and all man pages to `/usr/local/share/man/man{1,3}`. `client_static` was installed rather than `client_dynamic`, since a statically-linked binary is self-contained — installing the dynamic version system-wide would additionally require installing `libmyutils.so` to a system library directory and running `ldconfig`, which the assignment doesn't ask for. After `sudo make install`, `client` runs from any directory and `man client` / `man mystrlen` work without extra configuration, since `/usr/local/bin` and `/usr/local/share/man` are already on the default `PATH`/`MANPATH`.
+The `install` target (added to both the root `Makefile` and `src/Makefile`) copies `bin/client_static` to `/usr/local/bin/client`, and copies all the man pages to `/usr/local/share/man/man1` and `/usr/local/share/man/man3`. We installed `client_static` instead of `client_dynamic`, since it doesn't depend on any other file to run — installing the dynamic version system-wide would also mean installing `libmyutils.so` somewhere the system can find it, which the assignment doesn't ask for. After running `sudo make install`, typing `client` works from any folder, and `man client` / `man mystrlen` both work too, since `/usr/local/bin` and `/usr/local/share/man` are already checked by default.
 
 ---
 
 ## Part 6: Final Notes
 
-All feature branches were completed, tagged, and merged into `main` in sequence:
+All feature branches were finished, tagged, and merged into `main` one after another:
 
 | Branch | Tag | Release |
 |---|---|---|
@@ -133,6 +133,6 @@ All feature branches were completed, tagged, and merged into `main` in sequence:
 | `dynamic-build` | `v0.3.1-dynamic` | Version 0.3.1: Dynamic Library Build |
 | `man-pages` | `v0.4.1-final` | Version 0.4.1: Final Build |
 
-Each branch was merged into `main` before starting the next feature (per the assignment's stated sequencing), and all branches remain pushed to the remote alongside `main` for the complete development history.
+Each branch was merged into `main` before starting the next one, and every branch is still pushed to GitHub so the full history of how the project was built stays visible.
 
-Building this project end to end — direct multi-file compilation, then a static library, then a dynamic library, then packaging with man pages and an install target — made the tradeoffs between the approaches concrete rather than theoretical: the same six functions moved from being copied directly into one executable, to being archived and still copied in at static-link time, to finally being loaded from a separate `.so` file at runtime and resolved by the dynamic loader via `LD_LIBRARY_PATH`. Inspecting the results at each stage with `nm`, `readelf`, `ldd`, and `ls -lh` turned "static vs. dynamic linking" from a textbook distinction into something directly observable in the built artifacts.
+Building this step by step — first compiling everything directly, then a static library, then a dynamic library, then adding documentation and an install step — made the differences between these approaches easy to actually see instead of just reading about them. The same six functions went from being copied straight into one program, to being archived but still copied in at link time, to finally being kept in a separate file and loaded only when the program starts. Checking each stage with `nm`, `readelf`, `ldd`, and `ls -lh` turned "static vs dynamic linking" from a theory topic into something we could actually watch happen.

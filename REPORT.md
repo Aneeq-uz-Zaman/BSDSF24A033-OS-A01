@@ -35,15 +35,44 @@ Attaching a compiled binary (like `bin/client`) matters because it lets someone 
 
 ### Q1. Compare the Makefile from Part 2 and Part 3. What are the key differences in the variables and rules that enable the creation of a static library?
 
-_TODO_
+In Part 2, the final target linked directly from all three object files:
+```
+../bin/client: ../obj/main.o ../obj/mystrfunctions.o ../obj/myfilefunctions.o
+	gcc ../obj/main.o ../obj/mystrfunctions.o ../obj/myfilefunctions.o -o ../bin/client
+```
+
+In Part 3, an extra rule sits in between: instead of `mystrfunctions.o` and `myfilefunctions.o` going straight into the final link, they first get archived into `lib/libmyutils.a`:
+```
+../lib/libmyutils.a: ../obj/mystrfunctions.o ../obj/myfilefunctions.o
+	ar rc ../lib/libmyutils.a ../obj/mystrfunctions.o ../obj/myfilefunctions.o
+	ranlib ../lib/libmyutils.a
+```
+and the final executable (`client_static`) now depends on `main.o` plus the library archive, linking against it with `-L`/`-l` instead of listing raw object files:
+```
+../bin/client_static: ../obj/main.o ../lib/libmyutils.a
+	gcc ../obj/main.o -L../lib -lmyutils -o ../bin/client_static
+```
+So the key differences: (1) a new intermediate target that builds `libmyutils.a` using `ar`/`ranlib`, and (2) the final link rule's recipe switches from listing every object file individually to `-L../lib -lmyutils`, which tells the linker "search `lib/` for a library named `myutils` and pull in whatever symbols are actually needed from it."
 
 ### Q2. What is the purpose of the `ar` command? Why is `ranlib` often used immediately after it?
 
-_TODO_
+`ar` (archiver) bundles multiple object files into a single archive file (`.a`) without compressing them — a static library is really just a collection of `.o` files glued together with an index. Running `ar -t lib/libmyutils.a` confirms both object files landed inside it:
+```
+mystrfunctions.o
+myfilefunctions.o
+```
+
+`ranlib` builds a symbol index inside that archive — a lookup table mapping each function name (e.g. `mystrlen`) to the specific `.o` member that defines it. Without this index, the linker would have to scan every object file in the archive one by one to find a symbol; with it, the linker can jump straight to the right member. Some versions of `ar` (the `s` flag, i.e. `ar rcs`) build this index automatically, but running `ranlib` explicitly makes the two separate responsibilities — archiving vs. indexing — visible.
 
 ### Q3. When you run `nm` on `client_static`, are the symbols for functions like `mystrlen` present? What does this tell you about static linking?
 
-_TODO_
+Yes. Running `nm bin/client_static | grep mystrlen` shows:
+```
+00000000000016d4 T mystrlen
+```
+The `T` means the symbol is defined in the executable's own text (code) section — the actual machine code for `mystrlen` has been copied straight into `client_static`. The same is true for every other library function (`mystrcpy`, `mystrncpy`, `mystrcat`, `wordCount`, `mygrep` all show up with `nm bin/client_static`).
+
+This confirms how static linking works: at link time, the linker pulls whichever object files (from `libmyutils.a`) actually define the symbols the program uses, and physically copies their code into the final binary. The resulting executable is self-contained — it doesn't need `libmyutils.a` to exist anymore at runtime, since the library's code no longer lives in a separate file, it lives inside `client_static` itself.
 
 ---
 

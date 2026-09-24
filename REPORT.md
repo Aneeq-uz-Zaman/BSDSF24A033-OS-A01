@@ -80,15 +80,35 @@ This confirms how static linking works: at link time, the linker pulls whichever
 
 ### Q1. What is Position-Independent Code (`-fPIC`) and why is it required for shared libraries?
 
-_TODO_
+Position-Independent Code is machine code that works correctly no matter what memory address it gets loaded at, because it never hardcodes absolute addresses — it accesses data and functions using relative offsets instead. This is compiled with `gcc -fPIC -c mystrfunctions.c -o ../obj/mystrfunctions_pic.o` (a separate object file from the one used in the static build).
+
+It's required for shared libraries because a `.so` is loaded once into memory and then shared by every process that uses it — but each process can end up mapping that library at a different address in its own address space. A statically-linked program doesn't have this problem because its code is baked into one fixed executable at link time, but a shared library has to work identically regardless of where the loader happens to place it. Without `-fPIC`, the library's code would assume a fixed address and break for any process that loads it somewhere else.
 
 ### Q2. Explain the difference in file size between the static and dynamic clients. Why does this difference exist?
 
-_TODO_
+```
+16840 bin/client_static
+16456 bin/client_dynamic
+```
+`client_dynamic` is smaller than `client_static` by 384 bytes. The reason: `client_static` has the actual machine code for `mystrlen`, `mystrcpy`, `wordCount`, `mygrep`, etc. copied directly into it (confirmed with `nm` in Part 3), while `client_dynamic` only stores a reference saying "look up these symbols in `libmyutils.so` at runtime" — the real code stays in the separate `.so` file (16104 bytes) and isn't duplicated into the executable.
+
+The absolute difference here is small only because `libmyutils` itself is a tiny library with a handful of short functions — most of both executables' size is fixed overhead (ELF headers, C runtime startup code, symbol tables) that exists either way. With a larger, more realistic library, the same effect would produce a much bigger gap, since every additional function would add its full size to a static executable but add nothing to a dynamic one.
 
 ### Q3. What is `LD_LIBRARY_PATH`? Why was it necessary, and what does this tell you about the responsibilities of the dynamic loader?
 
-_TODO_
+`LD_LIBRARY_PATH` is an environment variable that tells the dynamic loader (`ld.so`) extra directories to search when a program needs to load a shared library at startup. Running `./bin/client_dynamic` without it fails immediately:
+```
+./bin/client_dynamic: error while loading shared libraries: libmyutils.so: cannot open shared object file: No such file or directory
+```
+This happens because `libmyutils.so` isn't installed anywhere the loader checks by default (like `/usr/lib`) — it only exists in this project's own `lib/` folder, which isn't on the loader's standard search path. Setting it fixes that:
+```bash
+export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
+```
+After that, `./bin/client_dynamic` runs correctly, and `ldd bin/client_dynamic` confirms exactly where it resolved the library from:
+```
+libmyutils.so => /home/aneeq/OS/BSDSF24A033-OS-A01/lib/libmyutils.so
+```
+This shows that unlike static linking (where everything needed is already inside the executable), dynamic linking defers finding and loading library code until the program actually starts running. The dynamic loader is responsible for locating every shared library a program depends on at launch time, and if it can't find one, the program can't even start — the dependency is resolved at runtime, not at compile/link time.
 
 ---
 
